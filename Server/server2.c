@@ -1,8 +1,7 @@
-#include "pub.h"
+#include "../Include/pub.h"
 
 int main(int argc,char **argv){
     int sid;
-    int cid;
     struct sockaddr_in seraddr;
     struct sockaddr_in cliaddr;
     socklen_t clilen;
@@ -13,8 +12,8 @@ int main(int argc,char **argv){
     bzero(&seraddr,serlen);
     bzero(&clilen,clilen);
     seraddr.sin_family = AF_INET;
-    seraddr.sin_port = htons(8000);
-    inet_pton(AF_INET,"argv[1]",&seraddr.sin_addr.s_addr);
+    seraddr.sin_port = htons(PORT);
+    inet_pton(AF_INET,"192.168.75.128",&seraddr.sin_addr.s_addr);
 
     if ((sid = socket(AF_INET,SOCK_STREAM,0)) < 0) {
         perror("socket()");
@@ -28,6 +27,4 @@ int main(int argc,char **argv){
         perror("listen()");
         exit(-1);
     }
-
-
 }
