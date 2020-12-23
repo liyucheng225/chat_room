@@ -19,21 +19,22 @@ void all_init(){
     servaddr.sin_port=htons(PORT);
 }
 void server_connect(){
-    if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) < 0) {
+    if ((sid = socket(AF_INET,SOCK_STREAM,0)) < 0) {
         perror("socket()");
         exit(-1);
 
     }
-    if (connect(sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr)) < 0){
+    if (connect(sid,(struct sockaddr *)&servaddr,sizeof(servaddr)) < 0){
         perror("concect()");
         exit(-1);
     }
+    printf("success server\n");
 }
 void home(){
     int num=0;
     char buf[100];
-    struct user *user_temp = (struct user *)malloc(100);
-    struct user *user = (struct user *)malloc(100);
+    struct user *user_temp = (struct user *)malloc(1000);
+    struct user *user = (struct user *)malloc(1000);
     while(1) {
         printf("--------------------聊天室--------------------\n");
         printf("  1.用户注册\n");
@@ -46,16 +47,18 @@ void home(){
         case 1:
             printf("--------------------聊天室--------------------\n");
             user_register(user_temp);
-            printf("name=%sname_len=%d\n",user_temp->username,user_temp->username_len);
-            printf("passwa=%spass_len=%d\n",user_temp->passwd,user_temp->passwd_len);
+            printf("请按任意键继续:");
+            fgetc(stdin);
             break;
         case 2:
             printf("--------------------聊天室--------------------\n");
-            user_login(user);
+            //user_login(user);
             break;
         case 3:
             printf("--------------------聊天室--------------------\n");
-            //user_change();
+            user_change();
+            printf("请按任意键继续:");
+            fgetc(stdin);
             break;
         case 4:
             printf("--------------------聊天室--------------------\n");
@@ -71,54 +74,185 @@ void home(){
 }
 void user_register(struct user *user_temp){
     char buf[10];
+    char buf1[10];
+    int rebuf;
+    int relen;
+    char quest;
+    char answer[10];
+    char quest1[]={"1.小学同桌是谁？"};
+    char quest2[]={"2.数学最高分？"};
+    char quest3[]={"3.出生街道是？"};
     fgetc(stdin);
-    printf("请输入用户名：\n");
-    memset(buf,0,10);
-    fgets(buf,sizeof(buf),stdin);
-    strcpy(user_temp->username,buf);
-    user_temp->username_len = strlen(user_temp->username);
     while(1){
+        printf("请输入用户名：\n");
+        bzero(user_temp,1000);
+        memset(buf,0,10);
+        fgets(buf,sizeof(buf),stdin);
+        memcpy(user_temp->username,buf,strlen(buf)-1);
+        user_temp->type = NAME_CREAT;
+        if (send(sid,user_temp,1000,0) < 0) {
+            perror("send()");
+            exit(-1);
+        }
+        printf("user_temp=%s",user_temp->username);
+        if ((relen = recv(sid,&rebuf,sizeof(rebuf),0)) < 0) {
+            perror("recv");
+            exit(-1);
+        }
+        if (relen > 0) {
+            if(rebuf == SQL_FAILED) {
+                break;
+            }else if (rebuf == SQL_SUCCESS) {
+                printf("用户名已经注册，请重新输入！\n");
+            }
+        }
+        fgetc(stdin);
+    }
+    while(1){
+        quest = 0;
         bzero(user_temp->passwd,10);
         printf("请输入密码：\n");
         memset(buf,0,10);
         fgets(buf,sizeof(buf),stdin);
-        strcpy(user_temp->passwd,buf);
-        user_temp->passwd_len = strlen(user_temp->passwd);
+        memcpy(user_temp->passwd,buf,strlen(buf)-1);
+        printf("ps=%s",user_temp->passwd);
         printf("请再次输入密码：\n");
         memset(buf,0,10);
-        fgets(buf,sizeof(buf),stdin);
-        if (strcmp(user_temp->passwd,buf) != 0) {
+        memset(buf1,0,10);
+        fgets(buf,10,stdin);
+        memcpy(buf1,buf,strlen(buf)-1);
+        printf("buf=%s",buf1);
+        if (strcmp(user_temp->passwd,buf1) != 0) {
             printf("输入的两次密码不一致,请重新输入!\n");
             continue;
         }
-        //向服务端发送信息
-        //接收服务端的消息
-        printf("用户名为：%s的用户注册成功！\n",user_temp->username);
+        printf("请选择你的密保问题：\n");
+        printf("%s\n%s\n%s\n",quest1,quest2,quest3);
+        printf("请输入你的选择：\n");
+        quest = fgetc(stdin);
+        if(atoi(&quest) == 1) {
+            memcpy(user_temp->question,quest1,strlen(quest1));
+            printf("%s\n",user_temp->question);
+        }else if (atoi(&quest) ==2) {
+            memcpy(user_temp->question,quest2,strlen(quest2));
+            printf("%s\n",user_temp->question);
+        }else if(atoi(&quest) ==3) {
+            memcpy(user_temp->question,quest3,strlen(quest2));
+            printf("%s\n",user_temp->question);
+        }else {
+            printf("输入错误，请重新输入！\n");
+            continue;
+        }
+        printf("%s\n",user_temp->question);
+        fgetc(stdin);
+        printf("请输入您的答案：\n");
+        memset(answer,0,10);
+        fgets(answer,10,stdin);
+        printf("%s\n",user_temp->question);
+        memcpy(user_temp->answer,answer,strlen(answer)-1);
+        printf("%s\n",user_temp->question);
         break;
     }
+    //向服务端发送信息
+    user_temp->type = USER_CREAT;
+    if((relen=send(sid,user_temp,1000,0)) < 0) {
+        perror("recv()");
+        exit(-1);
+    }
+    printf("answer=%s\n",user_temp->answer);
+    printf("name=%s\n",user_temp->username);
+    printf("quest=%s\n",user_temp->question);
+    printf("ans=%s\n",user_temp->answer);
+    //接收服务端的消息
+    if ((relen = recv(sid,&rebuf,sizeof(buf),0)) < 0) {
+        perror("recv");
+        exit(-1);
+    }
 }
+
 void user_login(struct user *user){
+    int relen;
+    struct quest *que=(struct quest *)malloc(100);
+    char buf[10];
     bzero(user->username,10);
     printf("请输入用户名：\n");
-    char buf[10];
     memset(buf,0,10); 
     fgets(buf,sizeof(buf),stdin);
-    strcpy(user->passwd,buf);
-    user->passwd_len = strlen(user->passwd);
+    memcpy(user->passwd,buf,strlen(buf)-1);
     bzero(user->passwd,10);
     printf("请输入密码：\n");
     memset(buf,0,10);
     fgets(buf,sizeof(buf),stdin);
-    strcpy(user->passwd,buf);
-    user->passwd_len = strlen(user->passwd);
+    memcpy(user->passwd,buf,strlen(buf)-1);
+    if((relen=send(sid,user,1000,0)) < 0) {
+        perror("recv()");
+        exit(-1);
+    }
+    if ((relen = recv(sid,que,100,0)) < 0) {
+        perror("recv");
+        exit(-1);
+    }
     //向服务端发送信息
     //接受服务端的消息
     //判断错误类型
 
 }
-void user_change(){
+void user_change(struct user *user){
+    int relen;
+    int rebuf;
+    struct quest *que=(struct quest *)malloc(100);
+    char buf[10];
+    char buf1[10];
+    while(1){
+        bzero(user->username,10);
+        bzero(que->question,20);
+        bzero(que->answer,10);
+        printf("请输入用户名：\n");
+        memset(buf,0,10); 
+        fgets(buf,sizeof(buf),stdin);
+        memcpy(user->passwd,buf,strlen(buf)-1);
+        if((relen=send(sid,user,1000,0)) < 0) {
+            perror("recv()");
+            exit(-1);
+        }
+        if ((relen = recv(sid,&rebuf,sizeof(rebuf),0)) < 0) {
+            perror("recv");
+            exit(-1);
+        }
+            if ((relen = recv(sid,que,100,0)) < 0) {
+                perror("recv");
+                exit(-1);
+            }
+        if(rebuf==SQL_FAILED){
+            printf("账号错误,请重新输入!\n");
+        }else if(rebuf == SQL_SUCCESS) {
+            printf("您的密保问题是：%s\n",que->question);
+            printf("请回答您的密保问题：\n");
+            memcpy(buf1,buf,strlen(buf)-1);
+            memset(buf,0,10); 
+            fgets(buf,10,stdin);
+            if(strcmp(que->answer,buf1)==0) {
+                printf("回答正确！\n");
+                bzero(user->passwd,10);
+                bzero(user->question,20);
+                bzero(user->answer,10);
+                printf("请输入新密码：\n");
+                memset(buf,0,10); 
+                fgets(buf,sizeof(buf),stdin);
+                memcpy(user->passwd,buf,strlen(buf)-1);
+                strcpy(user->question,que->question);
+                strcpy(user->answer,que->answer);
+                user->type = NAME_CREAT;
+                if((relen=send(sid,user,1000,0)) < 0) {
+                    perror("recv()");
+                    exit(-1);
+                }
+                break;
+            }
+        }
+    }
 
 }
-void exit(){
+//void exit(){
 
-}
+//}

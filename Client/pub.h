@@ -1,6 +1,6 @@
 #pragma once
 #include "../Include/pub.h"
-int sockfd;
+int sid;
 struct sockaddr_in servaddr;
 void home();
 void server_connect();

@@ -12,19 +12,28 @@
 #include <malloc.h>
 #include <semaphore.h>
 #include <sys/types.h>
-#define MSG_CREAT 1
-#define MSG_LOGIN 2
-#define MSG_CHANGE 3
-#define MSG_EXIT 4
-#define FAILED -1
+#include <sys/epoll.h>
+#define USER_CREAT 1
+#define USER_LOGIN 2
+#define USER_CHANGE 3
+#define USER_EXIT 4
+#define NAME_FAILED -1
+#define PWSD_FAILED -2
 #define SUCCESS 0
 #define PORT 8000
+#define SQL_SUCCESS 33
+#define SQL_FAILED -3
+#define NAME_CREAT 5
+struct quest {
+    char question[20];
+    char answer[10];
+};
 
 struct user
 {
     int type;    //消息类型
-    int passwd_len;//密码长度
     char passwd[10];  //密码
     char username[10];
-    int username_len;//用户名长度
+    char question[20];
+    char answer[10];
 };
