@@ -104,7 +104,7 @@ void database_handle(struct user *user,int clid){
     }else if(user->type == CHAT_ROOM){
         for(int j=0;j<i;j++){
             if (cid[j].clid > 0) {
-                if(cid[j].clid == clid){
+                if(cid[j].clid == clid&&cid[j].online != USER_ONLINE){
                     if(flag == 0){
                         cid[j].type=ROOM_MASTER;
                     }else{
@@ -113,13 +113,18 @@ void database_handle(struct user *user,int clid){
                     cid[j].num = flag++;
                     cid[j].online = USER_ONLINE;
                     strcpy(cid[j].name,user->username);
+                    type=SUCCESS; 
+                }else if(cid[j].clid == clid&&cid[j].online == USER_ONLINE){
+                    type=USER_ONLINE; 
                 }
             }
         }
+        send(clid,&type,sizeof(type),0);
     }else if(user->type == BAN_USER) {
         type=NAME_FAILED;
         for(int j=0;j<i;j++){
             if(cid[j].clid > 0) {
+                printf("禁言=%s,%s",cid[j].name,user->username);
                 if(strcmp(cid[j].name,user->username)==0) {
                     cid[j].is_ban=1;
                     type=SUCCESS;
@@ -141,9 +146,39 @@ void database_handle(struct user *user,int clid){
         type=NAME_FAILED;
         for(int j=0;j<i;j++){
             if(cid[j].clid > 0) {
+                printf("解禁=%s,%s",cid[j].name,user->username);
                 if(strcmp(cid[j].name,user->username)==0) {
                     cid[j].is_ban=0;
                     type=SUCCESS;
+                }
+            }
+        }
+        send(clid,&type,sizeof(type),0);
+    }else if(user->type == KICK_USER){
+        type=NAME_FAILED;
+        for(int j=0;j<i;j++){
+            if(cid[j].clid > 0) {
+                printf("踢出=%s,%s",cid[j].name,user->username);
+                if(strcmp(cid[j].name,user->username)==0) {
+                    cid[j].is_ban=0;
+                    cid[j].num=0;
+                    cid[j].online=0;
+                    cid[j].type=0;
+                    printf("name=%s,cid=%d",cid[j].name,cid[i].online);
+                    bzero(cid[j].name,10);
+                    type=SUCCESS;
+                }
+            }
+        }
+        send(clid,&type,sizeof(type),0);
+    }else if(user->type == IS_ONLINE) {
+        type=SUCCESS;
+        for(int j=0;j<i;j++){
+            if(cid[j].clid > 0) {
+                printf("判断在不在现=%s,%d,%d",cid[j].name,cid[j].clid,clid);
+                printf("online=%d",cid[j].online);
+                if(cid[j].clid==clid&&cid[j].online==0) {
+                    type=NAME_FAILED;
                 }
             }
         }

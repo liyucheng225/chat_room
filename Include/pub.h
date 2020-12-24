@@ -32,6 +32,7 @@
 #define USER_ONLINE 17
 #define CHAT_ROOM 18
 #define IS_MASTER 19
+#define IS_ONLINE 20
 #define NAME_FAILED -1
 #define PWSD_FAILED -2
 #define SQL_FAILED -3

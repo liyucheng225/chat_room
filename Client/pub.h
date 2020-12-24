@@ -17,3 +17,4 @@ void ban_user(struct user *user);
 void pick_user(struct user *user);
 void kick_user(struct user *user);
 void private_chat(struct user *user);
+int id_online(struct user *user);
