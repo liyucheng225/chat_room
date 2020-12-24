@@ -29,41 +29,45 @@ int  database_insert_data_to_clientinfo(MYSQL *mysql,struct user *user ) {
 int database_search_user(MYSQL *mysql, struct user *user){
     int flag_pwd=0;
     int flag_usm=0;
-    char buf[1024];      /*定义一个存放数据库操作指令的字符串*/
-    sprintf(buf,"select * from user where name='%s'",user->username);
+    char buf[1024]={"select * from user;"};     /*定义一个存放数据库操作指令的字符串*/
     MYSQL_RES *res;                                             /*res用来保存查询到的结果集*/
     MYSQL_ROW row;                                              /*用来储存每一行的数据*/
     if (mysql_query(mysql, buf)){                /*调用数据库的查询语句函数，成功返回0，失败返回其他*/
         printf("Failed to query user!\n");
         return SQL_FAILED;
     }else{
-        printf("Query made ........\n");
         res = mysql_use_result(mysql);                           /*初始化逐行的结果集检索*/
         if (res){
-            row = mysql_fetch_row(res);                     /*从结果集中获取下一行*/
-            for (int t = 0; t <(int)mysql_num_fields(res);t++){ /*返回结果集中的列数*/
-                if (t == 0){    
-                    if(strcmp(user->username,row[t]) == 0) {
-                        flag_usm = 1;                    
-                    }else {
-                        return NAME_FAILED;
-                    }
-                }else if (t == 1){
-                    printf("psss=%s",row[t]);
-                    if(strcmp(user->passwd,row[t]) == 0) {
-                        flag_pwd = 1;
-                    }else {
-                        return PWSD_FAILED;
-                    }
+            for (int r = 0; r < (int )mysql_field_count(mysql); r++){/*返回上次执行语句的的结果列的数目*/
+                flag_pwd=0;
+                flag_usm=0;
+                row = mysql_fetch_row(res);                     /*从结果集中获取下一行*/
+                if (row == NULL){                               /*若下一行为空，则跳出循环*/
+                    break;
                 }
-                if(flag_pwd==1&&flag_usm==1){
-                    return SQL_SUCCESS;
-                }
+                for (int t = 0; t < (int )mysql_num_fields(res);t++){ /*返回结果集中的列数*/
+                    if (t == 0){    
+                        if(strcmp(user->username,row[t]) == 0) {
+                            flag_usm=1;
+
+                        }
+                    }else if (t == 1){    
+                        if(strcmp(user->passwd,row[t]) == 0) {
+                            flag_pwd=1;
+                        }
+                    }
+                    printf("flag1=%d,flag2=%d\n",flag_usm,flag_pwd);
+                    if(flag_pwd==1&&flag_usm==1){
+                        return SQL_SUCCESS;
+                    }
+                    if(t>1)
+                        break;
+                }  
             }
-        }  
+            mysql_free_result(res);         
+        }
+        return SQL_FAILED;
     }
-    mysql_free_result(res);         
-    return SQL_SUCCESS;
 }
 int database_search_name(MYSQL *mysql,char *name ){
     char query_server_info[] = "select * from user;";     /*定义一个存放数据库操作指令的字符串*/
@@ -75,7 +79,6 @@ int database_search_name(MYSQL *mysql,char *name ){
         printf("Failed to query user!\n");
         mysql_free_result(res);
     }else{
-        printf("Query made ........\n");
         res = mysql_use_result(mysql);                           /*初始化逐行的结果集检索*/
         if (res){
             for (int r = 0; r < (int )mysql_field_count(mysql); r++){/*返回上次执行语句的的结果列的数目*/
@@ -107,7 +110,6 @@ int database_search_question(MYSQL *mysql,char *name,struct quest *que ){
         printf("Failed to query user!\n");
         mysql_free_result(res);
     }else{
-        printf("Query made ........\n");
         res = mysql_use_result(mysql);                           /*初始化逐行的结果集检索*/
         if (res){
             for (int r = 0; r < (int )mysql_field_count(mysql); r++){/*返回上次执行语句的的结果列的数目*/

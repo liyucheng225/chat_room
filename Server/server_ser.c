@@ -3,6 +3,7 @@
 int i=0;
 int efd;
 int flag=0;//进入聊天室的顺序
+struct mesg mesg;
 struct epoll_event ev[50];
 struct epoll_event ev_ready[50];
 void *server_accept(void *arg) {
@@ -13,7 +14,6 @@ void *server_accept(void *arg) {
             perror("accept()");
             exit(-1);
         }
-        printf("%d success\n",clid);
         cid[i].clid=clid;
         ev[i].events = EPOLLIN;
         ev[i].data.fd = clid;
@@ -22,37 +22,32 @@ void *server_accept(void *arg) {
     }
 }
 void database_handle(struct user *user,int clid){
-    printf("处理函数\n");
     MYSQL mysql;
     struct quest *que=(struct quest *)malloc(100);
     database_connect(&mysql); 
     int type=0;
     if (user->type == USER_CREAT) {
-        //数据库查找函数
-        //如果存在此用户，说明已注册，否则存入数据库；
-        printf("插入数据\n");
-        printf("ps=%s\n",user->passwd);
-        printf("que=%s\n",user->question);
-        printf("name=%s\n",user->username);
-        printf("ans=%s\n",user->answer);
         database_insert_data_to_clientinfo(&mysql,user);//存入数据库 
     }else if (user->type == USER_LOGIN) {
-        //数据库查找函数
-        printf("type=%d",type);
         type = database_search_user(&mysql,user);
-        printf("type=%d",type);
+        for(int j=0;j<i;j++){
+            if(cid[j].clid > 0){
+                if(strcmp(cid[j].name,user->username)==0){
+                    if(cid[j].online==USER_ONLINE){
+                        break;
+                        type=USER_ONLINE;
+                    }
+                }
+            }
+        }
         if(send(clid,&type,sizeof(type),0) < 0) {
             perror("send()");
             exit(-1);
         }
-        //如果存在且密码匹配则成功
-        //不存在则返回啥失败
     }else if (user->type == USER_CHANGE) {
         memset(que->question,0,20);
         memset(que->answer,0,10);
-        printf("type=%d",type);
         type = database_search_question(&mysql,user->username,que);
-        printf("type=%d",type);
         if(send(clid,&type,sizeof(type),0) < 0) {
             perror("send()");
             exit(-1);
@@ -73,21 +68,19 @@ void database_handle(struct user *user,int clid){
             perror("send()");
             exit(-1);
         }
-        printf("search name\n");
     }else if (user->type == CHAT) {
-        char buf1[2048];
-        char buf2[2048];
-        sprintf(buf1,"%s:%s",user->username,user->data);
-        sprintf(buf2,"我:%s",user->data);
-        printf("buf1=%s",buf1);
-        printf("buf2=%s",buf2);
+        memset(mesg.group_mesg,0,2048);
+        memset(mesg.group_my_mesg,0,2048);
+        sprintf(mesg.group_mesg,"%s:%s",user->username,user->data);
+        sprintf(mesg.group_my_mesg,"我:%s",user->data);
+        mesg.type=CHAT;
         for(int j=0;j<i;j++) {
             if(cid[j].clid > 0) {
                 if(cid[j].clid==clid){
-                    send(cid[j].clid,buf2,2048,0);
+                    send(cid[j].clid,&mesg,4096,0);
                 }
                 else{ 
-                    send(cid[j].clid,buf1,2048,0);            
+                    send(cid[j].clid,&mesg,4096,0);            
                 }
             }
         }
@@ -124,7 +117,6 @@ void database_handle(struct user *user,int clid){
         type=NAME_FAILED;
         for(int j=0;j<i;j++){
             if(cid[j].clid > 0) {
-                printf("禁言=%s,%s",cid[j].name,user->username);
                 if(strcmp(cid[j].name,user->username)==0) {
                     cid[j].is_ban=1;
                     type=SUCCESS;
@@ -146,7 +138,6 @@ void database_handle(struct user *user,int clid){
         type=NAME_FAILED;
         for(int j=0;j<i;j++){
             if(cid[j].clid > 0) {
-                printf("解禁=%s,%s",cid[j].name,user->username);
                 if(strcmp(cid[j].name,user->username)==0) {
                     cid[j].is_ban=0;
                     type=SUCCESS;
@@ -158,13 +149,11 @@ void database_handle(struct user *user,int clid){
         type=NAME_FAILED;
         for(int j=0;j<i;j++){
             if(cid[j].clid > 0) {
-                printf("踢出=%s,%s",cid[j].name,user->username);
                 if(strcmp(cid[j].name,user->username)==0) {
                     cid[j].is_ban=0;
                     cid[j].num=0;
                     cid[j].online=0;
                     cid[j].type=0;
-                    printf("name=%s,cid=%d",cid[j].name,cid[i].online);
                     bzero(cid[j].name,10);
                     type=SUCCESS;
                 }
@@ -175,15 +164,56 @@ void database_handle(struct user *user,int clid){
         type=SUCCESS;
         for(int j=0;j<i;j++){
             if(cid[j].clid > 0) {
-                printf("判断在不在现=%s,%d,%d",cid[j].name,cid[j].clid,clid);
-                printf("online=%d",cid[j].online);
                 if(cid[j].clid==clid&&cid[j].online==0) {
                     type=NAME_FAILED;
                 }
             }
         }
         send(clid,&type,sizeof(type),0);
+    }else if(user->type == EXIT_USER){
+        type=NAME_FAILED;
+        for(int j=0;j<i;j++){
+            if(cid[j].clid > 0) {
+                if(strcmp(cid[j].name,user->username)==0) {
+                    cid[j].is_ban=0;
+                    cid[j].num=0;
+                    cid[j].online=0;
+                    cid[j].type=0;
+                    bzero(cid[j].name,10);
+                    type=SUCCESS;
+                }
+            }
+        }
+        send(clid,&type,sizeof(type),0);
+    }else if(user->type == PRIVATE_CHAT){
+        memset(mesg.private_mesg,0,2048);
+        sprintf(mesg.private_mesg,"%s向你私发了一条信息:%s",user->username,user->data);
+        for(int j=0;j<i;j++){
+            if(cid[j].clid>0){
+                if(strcmp(cid[j].name,user->private_name)==0){
+                    mesg.type=PRIVATE_CHAT;
+                    send(cid[j].clid,&mesg,4096,0);
+                    break;
+                }
+            }
+        }
+    }else if(user->type == IS_BAN){
+        for(int j=0;j<i;j++){
+            if(cid[j].clid>0){
+                if(strcmp(cid[j].name,user->private_name)==0){
+                    if(cid[j].is_ban==1){
+                        type=IS_BAN;
+                    }
+                    break;
+                }
+            }
+        }
+        if(send(clid,&type,sizeof(type),0) < 0){
+            perror("send()");
+            exit(-1);
+        }
     }
+        printf("type=%d\n",type);
     database_close_connection(&mysql);  
 }
 int main()
@@ -201,15 +231,14 @@ int main()
         if ((nready = epoll_wait(efd,ev_ready,50,-1)) <= 0) {
             continue;         
         } 
-        printf("nready=%d\n",nready);
         for (int i=0;i<nready;i++){
-            printf("cid=%d",ev_ready[i].data.fd);
             if (recv(ev_ready[i].data.fd,user,2048,0) < 0) {
                 perror("recv()");
                 exit(-1);
             }
-            printf("name=%s\n",user->username);
+            printf("开始：cid=%d,type=%d\n",ev_ready[i].data.fd,user->type);
             database_handle(user,ev_ready[i].data.fd);
+            printf("结束：cid=%d,type=%d\n",ev_ready[i].data.fd,user->type);
         }
     }
     return 0;
