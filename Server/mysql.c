@@ -49,7 +49,8 @@ int database_search_user(MYSQL *mysql, struct user *user){
                         return NAME_FAILED;
                     }
                 }else if (t == 1){
-                    if(strcmp(user->username,row[t]) == 0) {
+                    printf("psss=%s",row[t]);
+                    if(strcmp(user->passwd,row[t]) == 0) {
                         flag_pwd = 1;
                     }else {
                         return PWSD_FAILED;

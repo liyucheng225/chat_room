@@ -31,10 +31,10 @@ void server_connect(){
     printf("success server\n");
 }
 void home(){
-    int num=0;
+    char num;
     char buf[100];
-    struct user *user_temp = (struct user *)malloc(1000);
-    struct user *user = (struct user *)malloc(1000);
+    struct user *user_temp = (struct user *)malloc(2048);
+    struct user *user = (struct user *)malloc(2048);
     while(1) {
         printf("--------------------聊天室--------------------\n");
         printf("  1.用户注册\n");
@@ -42,33 +42,39 @@ void home(){
         printf("  3.忘记密码\n");
         printf("  4.退出\n");
         printf("  请输入您的选择：\n");
-        scanf("%d",&num);
-        switch(num) {
-        case 1:
-            printf("--------------------聊天室--------------------\n");
-            user_register(user_temp);
-            printf("请按任意键继续:");
-            fgetc(stdin);
-            break;
-        case 2:
-            printf("--------------------聊天室--------------------\n");
-            //user_login(user);
-            break;
-        case 3:
-            printf("--------------------聊天室--------------------\n");
-            user_change();
-            printf("请按任意键继续:");
-            fgetc(stdin);
-            break;
-        case 4:
-            printf("--------------------聊天室--------------------\n");
-            //user_exit();
-            break;
+        num=fgetc(stdin);
+        getchar();
+        switch(atoi(&num)) {
+        case 1:{
+                   printf("--------------------聊天室--------------------\n");
+                   user_register(user_temp);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 2:{
+                   printf("--------------------聊天室--------------------\n");
+                   user_login(user);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 3:{
+                   printf("--------------------聊天室--------------------\n");
+                   user_change(user);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 4:{
+                   printf("--------------------聊天室--------------------\n");
+                   user_exit();
+               }
+               return;
         default:
-            printf("您的输入有误,请重新输入！\n");
-            break;
+               printf("您的输入有误,请重新输入！\n");
+               break;
         }
-        fgets(buf,100,stdin);
         fflush(stdin);
     }
 }
@@ -82,15 +88,14 @@ void user_register(struct user *user_temp){
     char quest1[]={"1.小学同桌是谁？"};
     char quest2[]={"2.数学最高分？"};
     char quest3[]={"3.出生街道是？"};
-    fgetc(stdin);
     while(1){
         printf("请输入用户名：\n");
-        bzero(user_temp,1000);
+        bzero(user_temp,2048);
         memset(buf,0,10);
         fgets(buf,sizeof(buf),stdin);
         memcpy(user_temp->username,buf,strlen(buf)-1);
         user_temp->type = NAME_CREAT;
-        if (send(sid,user_temp,1000,0) < 0) {
+        if (send(sid,user_temp,2048,0) < 0) {
             perror("send()");
             exit(-1);
         }
@@ -108,6 +113,7 @@ void user_register(struct user *user_temp){
         }
         fgetc(stdin);
     }
+    fflush(stdin);
     while(1){
         quest = 0;
         bzero(user_temp->passwd,10);
@@ -151,11 +157,11 @@ void user_register(struct user *user_temp){
         printf("%s\n",user_temp->question);
         memcpy(user_temp->answer,answer,strlen(answer)-1);
         printf("%s\n",user_temp->question);
-        break;
+        return;
     }
     //向服务端发送信息
     user_temp->type = USER_CREAT;
-    if((relen=send(sid,user_temp,1000,0)) < 0) {
+    if((relen=send(sid,user_temp,2048,0)) < 0) {
         perror("recv()");
         exit(-1);
     }
@@ -172,30 +178,40 @@ void user_register(struct user *user_temp){
 
 void user_login(struct user *user){
     int relen;
-    struct quest *que=(struct quest *)malloc(100);
+    int rebuf;
     char buf[10];
+    fflush(stdin);
     bzero(user->username,10);
     printf("请输入用户名：\n");
     memset(buf,0,10); 
-    fgets(buf,sizeof(buf),stdin);
-    memcpy(user->passwd,buf,strlen(buf)-1);
+    fgets(buf,10,stdin);
+    memcpy(user->username,buf,strlen(buf)-1);
+    printf("%s",user->username);
     bzero(user->passwd,10);
     printf("请输入密码：\n");
     memset(buf,0,10);
-    fgets(buf,sizeof(buf),stdin);
+    fflush(stdin);
+    fgets(buf,10,stdin);
     memcpy(user->passwd,buf,strlen(buf)-1);
-    if((relen=send(sid,user,1000,0)) < 0) {
+    printf("ps=%s",user->passwd);
+    user->type = USER_LOGIN;
+    if((relen=send(sid,user,2048,0)) < 0) {
         perror("recv()");
         exit(-1);
     }
-    if ((relen = recv(sid,que,100,0)) < 0) {
+    if ((relen = recv(sid,&rebuf,sizeof(rebuf),0)) < 0) {
         perror("recv");
         exit(-1);
     }
-    //向服务端发送信息
-    //接受服务端的消息
-    //判断错误类型
-
+    printf("type=%d",rebuf);
+    if(rebuf == NAME_FAILED) {
+        printf("用户名错误,请重新输入\n");
+    }else if(rebuf == PWSD_FAILED) {
+        printf("密码错误请,重新输入\n");
+    }else if(rebuf == SQL_SUCCESS) {
+        printf("验证成功，进入聊天界面\n");
+        chat_room(user);
+    }
 }
 void user_change(struct user *user){
     int relen;
@@ -210,8 +226,9 @@ void user_change(struct user *user){
         printf("请输入用户名：\n");
         memset(buf,0,10); 
         fgets(buf,sizeof(buf),stdin);
-        memcpy(user->passwd,buf,strlen(buf)-1);
-        if((relen=send(sid,user,1000,0)) < 0) {
+        memcpy(user->username,buf,strlen(buf)-1);
+        user->type = USER_CHANGE;
+        if((relen=send(sid,user,2048,0)) < 0) {
             perror("recv()");
             exit(-1);
         }
@@ -219,18 +236,24 @@ void user_change(struct user *user){
             perror("recv");
             exit(-1);
         }
-            if ((relen = recv(sid,que,100,0)) < 0) {
-                perror("recv");
-                exit(-1);
-            }
+        printf("type=%d",rebuf);
+        if ((relen = recv(sid,que,100,0)) < 0) {
+            perror("recv");
+            exit(-1);
+        }
+        printf("type=%d",rebuf);
         if(rebuf==SQL_FAILED){
             printf("账号错误,请重新输入!\n");
+            continue;
         }else if(rebuf == SQL_SUCCESS) {
-            printf("您的密保问题是：%s\n",que->question);
+            printf("您的密保问题是：\n%s\n",que->question);
             printf("请回答您的密保问题：\n");
             memcpy(buf1,buf,strlen(buf)-1);
             memset(buf,0,10); 
+            memset(buf1,0,10); 
+            fflush(stdin);
             fgets(buf,10,stdin);
+            memcpy(buf1,buf,strlen(buf)-1);
             if(strcmp(que->answer,buf1)==0) {
                 printf("回答正确！\n");
                 bzero(user->passwd,10);
@@ -242,17 +265,270 @@ void user_change(struct user *user){
                 memcpy(user->passwd,buf,strlen(buf)-1);
                 strcpy(user->question,que->question);
                 strcpy(user->answer,que->answer);
-                user->type = NAME_CREAT;
-                if((relen=send(sid,user,1000,0)) < 0) {
+                user->type = USER_CREAT;
+                if((relen=send(sid,user,2048,0)) < 0) {
                     perror("recv()");
                     exit(-1);
                 }
                 break;
+            }else {
+                printf("回答错误!");
             }
         }
     }
 
 }
-//void exit(){
+void user_exit(struct user *user){
+    int relen;
+    user->type = USER_EXIT;
+    if((relen=send(sid,user,2048,0)) < 0) {
+        perror("recv()");
+        exit(-1);
+    }
+    close(sid);
+}
+void *recv_select(void *arg){
+    char buf[2048];
+    int relen;
+    while(1){
+        if((relen=recv(sid,buf,2048,0)) < 0) {
+            perror("recv()");
+            exit(-1);
+        }
+        if(relen > 0){
+            printf("%s",buf);        
+        }
 
-//}
+    }
+}
+/*void chat_room(struct user *user){
+//群聊
+int relen;
+char buf[1024];
+pthread_t thread;
+if(pthread_create(&thread,0,recv_select,0) < 0) {
+perror("pthread_create()");
+exit(-1);
+}
+while(1){
+printf("请输入您要发送的内容,或者输入Exit退出聊天：\n");
+fgets(buf,1024,stdin);
+if(strcmp(buf,"Exit") == 0) {
+break;
+}
+strcpy(user->data,buf);
+user->type = CHAT;
+if((relen=send(sid,user,2048,0)) < 0) {
+perror("recv()");
+exit(-1);
+}
+}
+}*/
+void chat_room(struct user *user){
+    user->type = CHAT_ROOM;
+    send(sid,user,2048,0);
+    char num;
+    while(1) {
+        num=0;
+        printf("--------------------聊天室--------------------\n");
+        printf("  1.查看在线人数\n");
+        printf("  2.群聊\n");
+        printf("  3.文件传输\n");
+        printf("  4.禁言\n");
+        printf("  5.解禁\n");
+        printf("  6.踢人\n");
+        printf("  7.私聊\n");
+        printf("  7.退出\n");
+        printf("  请输入您的选择：\n");
+        num=fgetc(stdin);
+        getchar();
+        switch(atoi(&num)) {
+        case 1:{
+                   printf("--------------------聊天室--------------------\n");
+                   printf("----------------查看在线人数--------------------\n");
+                   online_user(user);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 2:{
+                   printf("--------------------聊天室--------------------\n");
+                   printf("--------------------群聊--------------------\n");
+                   group_chat(user);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 3:{
+                   printf("--------------------聊天室--------------------\n");
+                   printf("------------------文件传输--------------------\n");
+           //        file_transfer(user);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 4:{
+                   printf("--------------------聊天室--------------------\n");
+                   printf("--------------------禁言--------------------\n");
+                   ban_user(user);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 5:{
+                   printf("--------------------聊天室--------------------\n");
+                   printf("--------------------解禁--------------------\n");
+       //            pick_user(user);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 6:{
+                   printf("--------------------聊天室--------------------\n");
+                   printf("--------------------踢人--------------------\n");
+     //              kick_user(user);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 7:{
+                   printf("--------------------聊天室--------------------\n");
+                   printf("--------------------私聊--------------------\n");
+   //                private_chat(user);
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        case 8:{
+                   printf("--------------------聊天室--------------------\n");
+                   printf("--------------------退出--------------------\n");
+                   printf("请按任意键继续:");
+                   fgetc(stdin);
+               }
+               break;
+        default:
+               printf("您的输入有误,请重新输入！\n");
+               break;
+        }
+        fflush(stdin);
+    }
+}
+void group_chat(struct user *user){
+    //群聊
+    int relen;
+    char buf[1024];
+    pthread_t thread;
+    if(pthread_create(&thread,0,recv_select,0) < 0) {
+        perror("pthread_create()");
+        exit(-1);
+    }
+    while(1){
+        printf("请输入您要发送的内容,或者输入Exit退出聊天：\n");
+        fgets(buf,1024,stdin);
+        if(strcmp(buf,"Exit") == 0) {
+            break;
+        }
+        strcpy(user->data,buf);
+        user->type = CHAT;
+        if(send(sid,user,2048,0) < 0) {
+            perror("recv()");
+            exit(-1);
+        }
+    }
+}
+void online_user(struct user *user){
+    int relen;
+    user->type = ONLINE_USER;
+    if(send(sid,user,2048,0) < 0) {
+        perror("recv()");
+        exit(-1);
+    }
+    if(recv(sid,&relen,sizeof(relen),0) < 0) {
+        perror("send()");
+        exit(-1);
+    }
+    printf("当前在线人数为：%d\n",relen);
+
+}
+void ban_user(struct user *user){
+    int type;
+    char buf[10];
+    user->type = IS_MASTER;
+    if(send(sid,user,2048,0) < 0) {
+        perror("send()");
+        exit(-1);
+    }
+    if(recv(sid,&type,sizeof(type),0) < 0) {
+        perror("recv()");
+        exit(-1);
+    }
+    if(type != ROOM_MASTER){
+        printf("你不是群主，想什么呢!\n");
+        return;
+    }else if(type == ROOM_MASTER) {
+        printf("请输入要禁言的用户名！\n");
+        fgets(buf,10,stdin);
+        memcpy(user->username,buf,strlen(buf)-1);
+        user->type = BAN_USER;
+    if(send(sid,user,2048,0) < 0) {
+        perror("send()");
+        exit(-1);
+    }
+    if(recv(sid,&type,sizeof(type),0) < 0) {
+        perror("recv()");
+        exit(-1);
+    }
+    if(type == NAME_FAILED) {
+        printf("用户名错误!\n");
+    }else if(type == SUCCESS) {
+        printf("禁言成功!\n");
+    }
+    }
+
+}
+void pick_user(struct user *user){
+    int type;
+    char buf[10];
+    user->type = IS_MASTER;
+    if(send(sid,user,2048,0) < 0) {
+        perror("send()");
+        exit(-1);
+    }
+    if(recv(sid,&type,sizeof(type),0) < 0) {
+        perror("recv()");
+        exit(-1);
+    }
+    if(type != ROOM_MASTER){
+        printf("你不是群主，想什么呢!\n");
+        return;
+    }else if(type == ROOM_MASTER) {
+        printf("请输入要解禁的用户名！\n");
+        fgets(buf,10,stdin);
+        memcpy(user->username,buf,strlen(buf)-1);
+        user->type = PICK_USER;
+    if(send(sid,user,2048,0) < 0) {
+        perror("send()");
+        exit(-1);
+    }
+    if(recv(sid,&type,sizeof(type),0) < 0) {
+        perror("recv()");
+        exit(-1);
+    }
+    if(type == NAME_FAILED) {
+        printf("用户名错误!\n");
+    }else if(type == SUCCESS) {
+        printf("解禁成功!\n");
+    }
+    }
+
+
+}
+/*
+void file_transfer(struct user *user){
+}
+void kick_user(struct user *user){
+
+} 
+void private_chat(struct user *user){
+
+}*/

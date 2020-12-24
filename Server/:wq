@@ -2,7 +2,6 @@
 #include "./pub.h"
 int i=0;
 int efd;
-int flag=0;//进入聊天室的顺序
 struct epoll_event ev[50];
 struct epoll_event ev_ready[50];
 void *server_accept(void *arg) {
@@ -14,10 +13,10 @@ void *server_accept(void *arg) {
             exit(-1);
         }
         printf("%d success\n",clid);
-        cid[i].clid=clid;
+        cid[i]=clid;
         ev[i].events = EPOLLIN;
         ev[i].data.fd = clid;
-        epoll_ctl(efd,EPOLL_CTL_ADD,cid[i].clid,&ev[i]);
+        epoll_ctl(efd,EPOLL_CTL_ADD,cid[i],&ev[i]);
         i++;
     }
 }
@@ -61,12 +60,11 @@ void database_handle(struct user *user,int clid){
         return;
     }else if(user->type == USER_EXIT) {
         for(int j=0;j<i;j++) {
-            if(cid[j].clid==clid) {
-                cid[j].clid = 0;
-                break;
+            if(cid[i]==clid) {
+                cid[i]=-1;
             }
+            close(clid);
         }    
-        close(clid);
     }else if(user->type == NAME_CREAT){
         type = database_search_question(&mysql,user->username,que);
         if(send(clid,&type,sizeof(type),0) < 0) {
@@ -82,72 +80,13 @@ void database_handle(struct user *user,int clid){
         printf("buf1=%s",buf1);
         printf("buf2=%s",buf2);
         for(int j=0;j<i;j++) {
-            if(cid[j].clid > 0) {
-                if(cid[j].clid==clid){
-                    send(cid[j].clid,buf2,2048,0);
-                }
-                else{ 
-                    send(cid[j].clid,buf1,2048,0);            
-                }
+            if(cid[j] > 0&&cid[j]!=clid) {
+                send(cid[j],buf1,2048,0);
+            }
+            if(cid[j>0&&cid[j]==clid]){
+                send(cid[j],buf2,2048,0);
             }
         }
-    }else if (user->type == ONLINE_USER ){
-        int online_num=0;
-        for(int j=0;j<i;j++){
-            if (cid[j].clid > 0) {
-                if(cid[j].online == USER_ONLINE) {
-                    online_num++;
-                }    
-            }
-        }
-        send(clid,&online_num,sizeof(online_num),0);      
-    }else if(user->type == CHAT_ROOM){
-        for(int j=0;j<i;j++){
-            if (cid[j].clid > 0) {
-                if(cid[j].clid == clid){
-                    if(flag == 0){
-                        cid[j].type=ROOM_MASTER;
-                    }else{
-                        cid[j].type =ROOM_USER; 
-                    }
-                    cid[j].num = flag++;
-                    cid[j].online = USER_ONLINE;
-                    strcpy(cid[j].name,user->username);
-                }
-            }
-        }
-    }else if(user->type == BAN_USER) {
-        type=NAME_FAILED;
-        for(int j=0;j<i;j++){
-            if(cid[j].clid > 0) {
-                if(strcmp(cid[j].name,user->username)==0) {
-                    cid[j].is_ban=1;
-                    type=SUCCESS;
-                }
-            }
-        }
-        send(clid,&type,sizeof(type),0);
-    }else if (user->type == IS_MASTER) {
-        for(int j=0;j<i;j++){
-            if(cid[j].clid > 0) {
-                if(cid[j].clid == clid) {
-                    type=cid[j].type;
-                    break;
-                }
-            }
-        }
-        send(clid,&type,sizeof(type),0);
-    }else if(user->type == PICK_USER) {
-        type=NAME_FAILED;
-        for(int j=0;j<i;j++){
-            if(cid[j].clid > 0) {
-                if(strcmp(cid[j].name,user->username)==0) {
-                    cid[j].is_ban=0;
-                    type=SUCCESS;
-                }
-            }
-        }
-        send(clid,&type,sizeof(type),0);
     }
     database_close_connection(&mysql);  
 }

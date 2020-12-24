@@ -12,7 +12,6 @@ int database_insert_data_to_clientinfo(MYSQL *MYSQL,struct user *user);
 void database_close_connection(MYSQL *mysql);
 int database_search_question(MYSQL *mysql,char *name,struct quest *que );
 int sid;
-int cid[50];
 struct sockaddr_in seraddr;
 struct sockaddr_in cliaddr;
 socklen_t serlen;
