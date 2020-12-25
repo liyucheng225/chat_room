@@ -1,5 +1,4 @@
-include  stu.mk
-SECTIONS = ./ModuleA/  ./ModuleB/   
+SECTIONS = ./Server/  ./Client/   
 all:
 	for dir in $(SECTIONS);do $(MAKE) -C $$dir || exit "$$?";done
 .PHONY:clean
