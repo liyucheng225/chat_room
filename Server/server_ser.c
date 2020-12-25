@@ -236,9 +236,7 @@ int main()
                 perror("recv()");
                 exit(-1);
             }
-            printf("开始：cid=%d,type=%d\n",ev_ready[i].data.fd,user->type);
             database_handle(user,ev_ready[i].data.fd);
-            printf("结束：cid=%d,type=%d\n",ev_ready[i].data.fd,user->type);
         }
     }
     return 0;

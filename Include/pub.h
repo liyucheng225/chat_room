@@ -33,6 +33,8 @@
 #define CHAT_ROOM 18
 #define IS_MASTER 19
 #define IS_ONLINE 20
+#define IS_BAN 21
+#define EXIT_USER 22
 #define NAME_FAILED -1
 #define PWSD_FAILED -2
 #define SQL_FAILED -3
@@ -41,10 +43,16 @@ struct quest {
     char question[20];
     char answer[10];
 };
+struct mesg {
+    int type;
+    char private_mesg[2048];
+    char group_mesg[2048];
+    char group_my_mesg[2048];
+};
 
 struct cid{
     int online;
-    int  type;
+    int type;
     int clid;
     int num;
     int is_ban;
@@ -59,4 +67,5 @@ struct user
     char question[20];
     char answer[10];
     char data[1024];
+    char private_name[10];
 };
